@@ -1,0 +1,20 @@
+name: MEME LAB Radar v0.4 tests
+on:
+  push:
+    paths:
+      - 'v0.4/**'
+      - '.github/workflows/radar-v04.yml'
+  pull_request:
+    paths:
+      - 'v0.4/**'
+      - '.github/workflows/radar-v04.yml'
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Offline unit tests
+        run: cd v0.4 && python -m unittest -v test_radar
