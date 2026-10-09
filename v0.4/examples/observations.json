@@ -1,0 +1,28 @@
+[
+  {
+    "observed_at": "2026-10-09T08:00:00+00:00",
+    "chain": "testnet",
+    "pool_address": "0xPOOL",
+    "base_token": "0xMEME",
+    "quote_token": "0xSTOCK",
+    "stock_symbol": "NVDA",
+    "source": "fixture",
+    "source_record_id": "pool-0",
+    "liquidity_usd": 1000,
+    "volume_24h_usd": 500,
+    "txns_24h": 5
+  },
+  {
+    "observed_at": "2026-10-09T09:00:00+00:00",
+    "chain": "testnet",
+    "pool_address": "0xPOOL",
+    "base_token": "0xMEME",
+    "quote_token": "0xSTOCK",
+    "stock_symbol": "NVDA",
+    "source": "fixture",
+    "source_record_id": "pool-60",
+    "liquidity_usd": 2000,
+    "volume_24h_usd": 900,
+    "txns_24h": 9
+  }
+]
