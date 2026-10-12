@@ -24,6 +24,8 @@ jobs:
         run: cd v0.4 && python -m unittest -v test_radar test_compatibility
       - name: Browser script syntax
         run: node --check app.js
+      - name: Browser DOM contract smoke
+        run: node v0.4/ui_contract.test.cjs
       - name: SQLite to JSON export smoke
         run: |
           python v0.4/radar.py --db /tmp/meme-radar-ci.sqlite3 init
