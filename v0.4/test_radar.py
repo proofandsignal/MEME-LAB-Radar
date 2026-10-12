@@ -38,10 +38,24 @@ class RadarTests(unittest.TestCase):
         result=survival(self.con,"testnet","0xPOOL")
         self.assertEqual(result["horizons"]["5m"],"UNKNOWN")
         self.assertEqual(result["horizons"]["60m"],"OBSERVED_ACTIVE")
-        self.assertEqual(result["horizons"]["360m"],"PENDING")
+        self.assertEqual(result["horizons"]["360m"],"UNKNOWN")
     def test_heatmap_latest_only(self):
         ingest(self.con,[record(0,1000),record(5,2000)])
         self.assertEqual(heatmap(self.con)[0]["liquidity_usd"],2000)
+    def test_source_mismatch_rejected(self):
+        out=ingest(self.con,[record()],source="api-provider")
+        self.assertEqual(out["status"],"VERIFY")
+        self.assertEqual(out["inserted"],0)
+        self.assertEqual(out["rejected"],1)
+    def test_stock_mapping_is_unverified(self):
+        ingest(self.con,[record()])
+        self.assertEqual(heatmap(self.con)[0]["mapping_status"],"UNVERIFIED")
+    def test_future_horizon_is_pending(self):
+        future=datetime.now(timezone.utc)+timedelta(days=2)
+        rec=record()
+        rec["observed_at"]=future.isoformat()
+        ingest(self.con,[rec])
+        self.assertEqual(survival(self.con,"testnet","0xPOOL")["horizons"]["60m"],"PENDING")
     def test_registry_never_self_verifies(self):
         obj={"chain":"testnet","token_address":"0xSTOCK","stock_symbol":"NVDA",
           "issuer":"example","instrument_type":"unknown","evidence_url":"https://example.org"}
