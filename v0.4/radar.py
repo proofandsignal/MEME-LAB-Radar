@@ -257,7 +257,7 @@ def main() -> int:
             result = survival(con,args.chain,args.pool)
         elif args.cmd == "export-ui":
             payload = export_snapshot(con)
-            Path(args.out).write_text(json.dumps(payload,indent=2)+"\\n",encoding="utf-8")
+            Path(args.out).write_text(json.dumps(payload,indent=2)+"\n",encoding="utf-8")
             result = {"status":"OK","file":args.out,"observations":len(payload["observations"]),
                       "data_gate":"UNVERIFIED"}
         else:
