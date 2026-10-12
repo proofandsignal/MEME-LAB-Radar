@@ -26,6 +26,10 @@ jobs:
         run: node --check app.js
       - name: Browser DOM contract smoke
         run: node v0.4/ui_contract.test.cjs
+      - name: Real Chrome browser acceptance
+        run: |
+          python -m pip install playwright==1.55.0
+          python v0.4/browser_smoke.py
       - name: SQLite to JSON export smoke
         run: |
           python v0.4/radar.py --db /tmp/meme-radar-ci.sqlite3 init
