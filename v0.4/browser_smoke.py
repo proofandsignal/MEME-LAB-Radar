@@ -6,6 +6,9 @@ from pathlib import Path
 import json
 import os
 import tempfile
+import threading
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from playwright.sync_api import sync_playwright
 
 root = Path(__file__).resolve().parent.parent
@@ -31,11 +34,18 @@ with tempfile.TemporaryDirectory() as tmp:
     invalid = Path(tmp) / "invalid.json"
     valid.write_text(json.dumps(sample), encoding="utf-8")
     invalid.write_text(json.dumps({**sample, "data_gate": "VERIFIED"}), encoding="utf-8")
-    with sync_playwright() as p:
+    server=ThreadingHTTPServer(("127.0.0.1",0),partial(SimpleHTTPRequestHandler,directory=str(root)))
+    thread=threading.Thread(target=server.serve_forever,daemon=True)
+    thread.start()
+    try:
+      with sync_playwright() as p:
         browser = p.chromium.launch(channel="chrome", headless=True, args=["--no-sandbox"])
         try:
             page = browser.new_page()
-            page.goto((root / "index.html").as_uri())
+            browser_errors=[]
+            page.on("pageerror", lambda exc: browser_errors.append(str(exc)))
+            page.goto(f"http://127.0.0.1:{server.server_port}/index.html")
+            page.get_by_text("IMPORT COLLECTOR JSON").wait_for(timeout=10000)
             assert page.title() == "MEME LAB Meta Radar v0.3"
             with page.expect_file_chooser() as chooser:
                 page.get_by_text("IMPORT COLLECTOR JSON").click()
@@ -57,6 +67,10 @@ with tempfile.TemporaryDirectory() as tmp:
             assert page.locator("#mTracked").inner_text() == "1"
             page.locator("#search").fill("missing")
             assert page.locator("#rows tr").count() == 0
+            assert not browser_errors, browser_errors
             print("REAL BROWSER ACCEPTANCE PASS — import/render/labels/reject/search")
         finally:
             browser.close()
+    finally:
+      server.shutdown()
+      server.server_close()
