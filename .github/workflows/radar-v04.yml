@@ -20,5 +20,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Offline unit tests
+      - name: Offline unit and contract tests
         run: cd v0.4 && python -m unittest -v test_radar test_compatibility
+      - name: Browser script syntax
+        run: node --check app.js
+      - name: SQLite to JSON export smoke
+        run: |
+          python v0.4/radar.py --db /tmp/meme-radar-ci.sqlite3 init
+          python v0.4/radar.py --db /tmp/meme-radar-ci.sqlite3 ingest --file v0.4/examples/observations.json --source fixture
+          python v0.4/radar.py --db /tmp/meme-radar-ci.sqlite3 export-ui --out /tmp/meme-radar-ui.json
+          python -c 'import json; p=json.load(open("/tmp/meme-radar-ui.json")); assert p["schema_version"] == "0.4.0"; assert p["data_gate"] == "UNVERIFIED"; assert len(p["observations"]) == 1; print("export smoke: PASS")'
