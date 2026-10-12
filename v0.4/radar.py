@@ -110,6 +110,8 @@ def validate_record(record: dict[str, Any]) -> dict[str, Any]:
 
 def ingest(con: sqlite3.Connection, records: list[dict[str, Any]],
            *, source: str = "manual") -> dict[str, Any]:
+    if not isinstance(source, str) or not source.strip():
+        raise ValueError("collector source required")
     start = utc_now()
     inserted = 0
     errors: list[str] = []
@@ -118,6 +120,8 @@ def ingest(con: sqlite3.Connection, records: list[dict[str, Any]],
             if not isinstance(raw, dict):
                 raise ValueError("record must be object")
             r = validate_record(raw)
+            if source != "manual" and r["source"] != source:
+                raise ValueError("record source disagrees with collector source")
             digest = hashlib.sha256(canonical(raw).encode("utf-8")).hexdigest()
             before = con.total_changes
             con.execute("""INSERT OR IGNORE INTO observations
@@ -166,7 +170,7 @@ def survival(con: sqlite3.Connection, chain: str, pool: str) -> dict[str, Any]:
         target = launch + timedelta(minutes=minutes)
         key = f"{minutes}m"
         if latest < target:
-            out[key] = "PENDING"
+            out[key] = "PENDING" if datetime.now(timezone.utc) < target else "UNKNOWN"
         else:
             matched = [r for r in rows if datetime.fromisoformat(r["observed_at"]) >= target]
             # Observation after horizon is not proof the pool was active at that horizon.
@@ -189,7 +193,7 @@ def heatmap(con: sqlite3.Connection) -> list[dict[str, Any]]:
         x.chain=o.chain AND x.pool_address=o.pool_address
         ORDER BY x.observed_at DESC,x.id DESC LIMIT 1)
       GROUP BY stock_symbol ORDER BY liquidity_usd DESC""").fetchall()
-    return [dict(r) for r in rows]
+    return [{**dict(r), "mapping_status":"UNVERIFIED", "note":"stock_symbol is reporter-supplied; contract/issuer mapping not checked"} for r in rows]
 
 def read_input(path: str) -> list[dict[str, Any]]:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -232,7 +236,7 @@ def main() -> int:
             result = {"status":"OK","heatmap":heatmap(con)}
         print(json.dumps(result,indent=2))
         return 0 if result.get("status") != "VERIFY" else 2
-    except (ValueError,OSError,sqlite3.Error) as exc:
+    except (ValueError,TypeError,KeyError,json.JSONDecodeError,OSError,sqlite3.Error) as exc:
         print(json.dumps({"status":"ERROR","message":str(exc)}),file=sys.stderr)
         return 1
     finally:
