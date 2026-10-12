@@ -3,10 +3,14 @@ on:
   push:
     paths:
       - 'v0.4/**'
+      - 'app.js'
+      - 'styles.css'
       - '.github/workflows/radar-v04.yml'
   pull_request:
     paths:
       - 'v0.4/**'
+      - 'app.js'
+      - 'styles.css'
       - '.github/workflows/radar-v04.yml'
 jobs:
   unit:
@@ -17,4 +21,4 @@ jobs:
         with:
           python-version: '3.11'
       - name: Offline unit tests
-        run: cd v0.4 && python -m unittest -v test_radar
+        run: cd v0.4 && python -m unittest -v test_radar test_compatibility
