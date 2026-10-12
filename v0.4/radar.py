@@ -195,6 +195,27 @@ def heatmap(con: sqlite3.Connection) -> list[dict[str, Any]]:
       GROUP BY stock_symbol ORDER BY liquidity_usd DESC""").fetchall()
     return [{**dict(r), "mapping_status":"UNVERIFIED", "note":"stock_symbol is reporter-supplied; contract/issuer mapping not checked"} for r in rows]
 
+def export_snapshot(con: sqlite3.Connection) -> dict[str, Any]:
+    """Export verified-format, but NOT verified-market-data, read-only UI snapshot."""
+    rows = con.execute("""SELECT o.* FROM observations o
+        WHERE o.id=(SELECT x.id FROM observations x
+          WHERE x.chain=o.chain AND x.pool_address=o.pool_address
+          ORDER BY x.observed_at DESC,x.id DESC LIMIT 1)
+        ORDER BY o.chain,o.pool_address""").fetchall()
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "data_gate": "UNVERIFIED",
+        "generated_at": utc_now(),
+        "source_type": "collector_export",
+        "observations": [
+            {key: r[key] for key in
+             ("observed_at","chain","pool_address","base_token","quote_token",
+              "stock_symbol","source","source_record_id","fetched_at","price_usd",
+              "liquidity_usd","volume_24h_usd","txns_24h","raw_sha256")}
+            for r in rows
+        ],
+    }
+
 def read_input(path: str) -> list[dict[str, Any]]:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(payload, list):
@@ -220,6 +241,8 @@ def main() -> int:
     surv.add_argument("--chain",required=True)
     surv.add_argument("--pool",required=True)
     sub.add_parser("heatmap")
+    exp = sub.add_parser("export-ui")
+    exp.add_argument("--out",required=True)
     args = p.parse_args()
     con = init_db(args.db)
     try:
@@ -232,6 +255,11 @@ def main() -> int:
             result = {"status":"REVIEW","message":"registry claim requires independent verification"}
         elif args.cmd == "survival":
             result = survival(con,args.chain,args.pool)
+        elif args.cmd == "export-ui":
+            payload = export_snapshot(con)
+            Path(args.out).write_text(json.dumps(payload,indent=2)+"\\n",encoding="utf-8")
+            result = {"status":"OK","file":args.out,"observations":len(payload["observations"]),
+                      "data_gate":"UNVERIFIED"}
         else:
             result = {"status":"OK","heatmap":heatmap(con)}
         print(json.dumps(result,indent=2))
