@@ -31,3 +31,22 @@
 ## Acceptance decision
 
 **NOT ACCEPTED** until compatibility, baseline reproducibility, and the three review areas have documented, reproducible evidence. No merge. No trading or token launch.
+
+
+## Final technical verification — 2026-10-14
+
+Latest reviewed PR head before this documentation-only update: `dfe3b6d40a295ac33531e37409d83126afbdc5d3`.
+
+- [x] Replacement `app.js` and `styles.css` added on build branch; this is **not** restoration of the original v0.3 implementation.
+- [x] Unit and JSON contract tests pass.
+- [x] SQLite → JSON smoke passes.
+- [x] DOM validation and real headless Chrome import/render test pass.
+- [x] PR-head GitHub Actions push and pull_request runs both conclude success.
+- [ ] v0.3 schema backward compatibility is **not demonstrated**. Scope: standalone v0.4 replacement browser with manual JSON import, not a migration of local v0.3 IndexedDB data.
+- [ ] Human final acceptance and merge approval remain pending.
+
+### Acceptance recommendation
+
+**Technical acceptance candidate, with documented scope restrictions.** The initial compatibility blocker is resolved for the *new v0.4 standalone export/import UI path*. It is not evidence that a complete v0.3 product or its historical user data can be migrated. No verified live-market claims are permitted. Demo/testnet fixture values are not live signals.
+
+**Gate:** Human approval is required before marking BUILD-001 ACCEPTED or merging PR #1. BUILD-002 Live Verification is still blocked until acceptance and controlled merge.
