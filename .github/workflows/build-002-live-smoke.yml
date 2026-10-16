@@ -1,0 +1,50 @@
+name: MEME LAB BUILD-002 live evidence smoke
+on:
+  push:
+    paths:
+      - 'v0.4/live_adapter.py'
+      - '.github/workflows/build-002-live-smoke.yml'
+  pull_request:
+    paths:
+      - 'v0.4/live_adapter.py'
+      - '.github/workflows/build-002-live-smoke.yml'
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Query provider and capture raw evidence
+        id: probe
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/meme-evidence
+          python v0.4/live_adapter.py --db /tmp/meme-evidence/radar.sqlite3 --query NVDA --evidence-out /tmp/meme-evidence/dexscreener.json > /tmp/meme-evidence/result.json
+      - name: Capture smoke diagnostics
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=Path('/tmp/meme-evidence');d.mkdir(exist_ok=True)
+          data={'test':'dexscreener_readonly_search','result':'${{ steps.probe.outcome }}','data_gate':'UNVERIFIED','note':'Ticker search does not verify tokenized stocks'}
+          (d/'manifest.json').write_text(json.dumps(data,indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-002-provider-evidence
+          path: /tmp/meme-evidence/
+          retention-days: 14
+      - name: Report verification outcome
+        if: always()
+        run: |
+          if [ '${{ steps.probe.outcome }}' != 'success' ]; then
+            echo '::error::LIVE VERIFY upstream probe failed'
+            exit 1
+          fi
+          echo 'Live candidate evidence recorded; stock issuer verification still pending'
