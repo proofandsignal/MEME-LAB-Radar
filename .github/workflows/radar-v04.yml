@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Offline unit and contract tests
-        run: cd v0.4 && python -m unittest -v test_radar test_compatibility test_live_adapter
+        run: cd v0.4 && python -m unittest -v test_radar test_compatibility test_live_adapter test_identity_verifier
       - name: Browser script syntax
         run: node --check app.js
       - name: Browser DOM contract smoke
