@@ -1,0 +1,63 @@
+name: BUILD-002 issuer and RPC live evidence
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'v0.4/issuer_rpc.py'
+      - '.github/workflows/build-002-issuer-rpc.yml'
+  pull_request:
+    paths:
+      - 'v0.4/issuer_rpc.py'
+      - '.github/workflows/build-002-issuer-rpc.yml'
+jobs:
+  issuer-rpc:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Probe official issuer API and RPC network
+        id: probe
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/issuer-evidence
+          python - <<'PY'
+          import json,sys
+          from pathlib import Path
+          sys.path.insert(0,"v0.4")
+          from issuer_rpc import ASSETS_URL,RPC_URL,CHAIN_ID,request_json,deployments,chain_probe
+          root=Path("/tmp/issuer-evidence")
+          result={"status":"VERIFY","issuer_url":ASSETS_URL,"rpc_url":RPC_URL,"expected_chain_id":CHAIN_ID}
+          try:
+              issuer=request_json(ASSETS_URL)
+              (root/"issuer_raw.json").write_text(json.dumps(issuer,indent=2))
+              registry=deployments(issuer)
+              result["issuer_deployment_count"]=len(registry)
+              if not registry:
+                  raise ValueError("no issuer deployments for chain 4663")
+              # Deterministic test address: first lexicographically ordered issuer deployment.
+              address=sorted(registry)[0]
+              result["sample_address"]=address
+              result["issuer_entry"]=registry[address]
+              rpc=chain_probe(address)
+              result["rpc_result"]=rpc
+              result["status"]="ISSUER_DEPLOYMENT_AND_CODE_MATCH" if rpc["status"]=="BYTECODE_PRESENT" else "VERIFY"
+          except Exception as error:
+              result["error"]=repr(error)
+          (root/"report.json").write_text(json.dumps(result,indent=2))
+          print(json.dumps({k:v for k,v in result.items() if k!="issuer_entry"},indent=2))
+          sys.exit(0 if result["status"]=="ISSUER_DEPLOYMENT_AND_CODE_MATCH" else 2)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-002-issuer-rpc-evidence
+          path: /tmp/issuer-evidence/
+          retention-days: 14
+      - name: Fail closed if issuer or RPC verification fails
+        if: always()
+        run: |
+          test '${{ steps.probe.outcome }}' = 'success' || (echo '::error::ISSUER/RPC VERIFY — not proven' && exit 1)
