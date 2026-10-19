@@ -35,7 +35,7 @@ def evaluate(call=rpc):
             return bytes.fromhex(word[2:])
         def symbol_decode(data):
             if len(data)==32:
-                return data.rstrip(b"\\x00").decode("ascii")
+                return data.rstrip(bytes([0])).decode("ascii")
             if len(data)<96: raise ValueError("symbol dynamic ABI too short")
             offset=int.from_bytes(data[:32],"big")
             if offset+32>len(data):raise ValueError("symbol offset invalid")
