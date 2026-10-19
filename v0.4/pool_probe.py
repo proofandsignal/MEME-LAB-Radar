@@ -6,6 +6,7 @@ Unsupported ABIs fail closed to VERIFY.
 import json
 import re
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 RPC="https://rpc.mainnet.chain.robinhood.com"
 ADDRESS=re.compile(r"^0x[0-9a-fA-F]{40}$")
@@ -14,8 +15,13 @@ TOKEN1="0xd21220a7"
 
 def rpc(method,params):
     payload=json.dumps({"jsonrpc":"2.0","id":1,"method":method,"params":params}).encode()
-    with urlopen(Request(RPC,data=payload,headers={"Content-Type":"application/json"}),timeout=12) as resp:
-        reply=json.load(resp)
+    try:
+        with urlopen(Request(RPC,data=payload,headers={"Content-Type":"application/json","Accept":"application/json","User-Agent":"MEME-LAB-Radar/0.4"}),timeout=12) as resp:
+            reply=json.load(resp)
+    except HTTPError as exc:
+        raise ValueError(f"RPC_HTTP_ERROR method={method} status={exc.code}") from exc
+    except (URLError, TimeoutError) as exc:
+        raise ValueError(f"RPC_TRANSPORT_ERROR method={method} kind={type(exc).__name__}") from exc
     if not isinstance(reply,dict) or "error" in reply or "result" not in reply:
         raise ValueError("unreliable RPC result")
     return reply["result"]
