@@ -1,0 +1,36 @@
+name: BUILD-002 anchored pool RPC evidence
+on:
+  push:
+    paths:
+      - 'v0.4/anchored_pool.py'
+      - '.github/workflows/build-002-anchored-pool.yml'
+  pull_request:
+    paths:
+      - 'v0.4/anchored_pool.py'
+      - '.github/workflows/build-002-anchored-pool.yml'
+jobs:
+  anchor-evidence:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Read pool at a fixed block height, capture trace
+        id: probe
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/anchored-pool
+          python v0.4/anchored_pool.py --pool 0x0092f73B6821098F66eEa758cf7eeB0F834C2303 --out /tmp/anchored-pool/report.json > /tmp/anchored-pool/result.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-002-anchored-pool-evidence
+          path: /tmp/anchored-pool/
+          retention-days: 14
+      - name: Anchor integrity gate
+        if: always()
+        run: |
+          test '${{ steps.probe.outcome }}' = 'success' || (echo '::error::BLOCK-ANCHORED VERIFICATION NOT PROVEN' && exit 1)
