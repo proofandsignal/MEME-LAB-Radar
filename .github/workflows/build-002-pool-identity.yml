@@ -1,0 +1,42 @@
+name: BUILD-002 pool issuer and factory evidence
+on:
+  push:
+    paths:
+      - 'v0.4/pool_identity.py'
+      - '.github/workflows/build-002-pool-identity.yml'
+  pull_request:
+    paths:
+      - 'v0.4/pool_identity.py'
+      - '.github/workflows/build-002-pool-identity.yml'
+  workflow_dispatch:
+jobs:
+  identity-evidence:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Read official issuer deployments and selected pool factory
+        id: probe
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/pool-identity
+          python v0.4/pool_identity.py \
+            --pool 0x0092f73B6821098F66eEa758cf7eeB0F834C2303 \
+            --base 0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC \
+            --quote 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168 \
+            --out /tmp/pool-identity/report.json > /tmp/pool-identity/summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-002-pool-identity-evidence
+          path: /tmp/pool-identity/
+          retention-days: 14
+      - name: Evidence capture gate; NOT issuer/factory approval
+        if: always()
+        run: |
+          test '${{ steps.probe.outcome }}' = 'success' || (echo '::error::NO ISSUER/FACTORY OBSERVATION' && exit 1)
+          echo '::notice::Identity report recorded. Results must be independently reviewed.'
