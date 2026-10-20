@@ -1,0 +1,36 @@
+name: BUILD-002 factory getPair evidence
+on:
+  push:
+    paths:
+      - 'v0.4/factory_getpair.py'
+      - '.github/workflows/build-002-factory-getpair.yml'
+  pull_request:
+    paths:
+      - 'v0.4/factory_getpair.py'
+      - '.github/workflows/build-002-factory-getpair.yml'
+jobs:
+  factory:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Capture pinned factory getPair response
+        id: probe
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/factory-evidence
+          python v0.4/factory_getpair.py --out /tmp/factory-evidence/report.json > /tmp/factory-evidence/summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-002-factory-getpair-evidence
+          path: /tmp/factory-evidence/
+          retention-days: 14
+      - name: Evidence outcome gate
+        if: always()
+        run: |
+          test '${{ steps.probe.outcome }}' = 'success' || (echo '::error::FACTORY GETPAIR NOT VERIFIED' && exit 1)
