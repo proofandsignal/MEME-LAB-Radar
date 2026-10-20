@@ -22,8 +22,20 @@ def rpc(method,params):
         raise ValueError(f"RPC_HTTP_ERROR method={method} status={exc.code}") from exc
     except (URLError, TimeoutError) as exc:
         raise ValueError(f"RPC_TRANSPORT_ERROR method={method} kind={type(exc).__name__}") from exc
-    if not isinstance(reply,dict) or "error" in reply or "result" not in reply:
-        raise ValueError("unreliable RPC result")
+    if not isinstance(reply,dict):
+        raise ValueError(f"RPC_MALFORMED_REPLY method={method}")
+    if "error" in reply:
+        error=reply["error"]
+        code=error.get("code") if isinstance(error,dict) else None
+        message=error.get("message") if isinstance(error,dict) else None
+        # A bounded classification only: do not persist arbitrary provider error
+        # bodies, URLs, request payloads, headers or possible secrets.
+        known=("execution reverted","method not found","invalid params","unsupported","rate limit")
+        label=next((v.replace(" ","_") for v in known if isinstance(message,str) and v in message.lower()),"other")
+        code=code if type(code) is int and -99999 <= code <= 99999 else "unknown"
+        raise ValueError(f"RPC_JSON_ERROR method={method} code={code} category={label}")
+    if "result" not in reply:
+        raise ValueError(f"RPC_MISSING_RESULT method={method}")
     return reply["result"]
 
 def decode_address(word):
