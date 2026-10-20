@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Offline unit and contract tests
-        run: cd v0.4 && python -m unittest -v test_radar test_compatibility test_live_adapter test_identity_verifier test_issuer_rpc test_pool_probe test_pool_identity test_anchored_pool test_quote_metadata test_factory_getpair
+        run: cd v0.4 && python -m unittest -v test_radar test_compatibility test_live_adapter test_identity_verifier test_issuer_rpc test_pool_probe test_pool_identity test_anchored_pool test_quote_metadata test_factory_getpair test_rpc_diagnostics
       - name: Browser script syntax
         run: node --check app.js
       - name: Browser DOM contract smoke
