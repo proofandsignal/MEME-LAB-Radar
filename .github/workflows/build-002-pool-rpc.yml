@@ -1,0 +1,66 @@
+name: BUILD-002 pool RPC evidence
+on:
+  push:
+    paths:
+      - '.github/workflows/build-002-pool-rpc.yml'
+      - 'v0.4/pool_probe.py'
+  pull_request:
+    paths:
+      - '.github/workflows/build-002-pool-rpc.yml'
+      - 'v0.4/pool_probe.py'
+  workflow_dispatch:
+jobs:
+  pool-evidence:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Fetch provider and inspect actual selected Robinhood pool
+        id: probe
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/pool-evidence
+          python - <<'PY'
+          import json,sys,traceback
+          from datetime import datetime,timezone
+          from pathlib import Path
+          sys.path.insert(0,'v0.4')
+          from live_adapter import fetch_search
+          from pool_probe import check_pool
+          root=Path('/tmp/pool-evidence')
+          report={'fetched_at':datetime.now(timezone.utc).isoformat(),'status':'VERIFY','source':'dexscreener','chain':'robinhood'}
+          try:
+              payload,url=fetch_search('NVDA')
+              (root/'provider_raw.json').write_text(json.dumps(payload,indent=2))
+              pairs=[p for p in payload.get('pairs',[]) if isinstance(p,dict) and p.get('chainId')=='robinhood']
+              if not pairs: raise ValueError('No Robinhood pool in provider search; not verified')
+              pair=sorted(pairs,key=lambda p:str(p.get('pairAddress','')))[0]
+              report['provider_url']=url
+              report['pool_address']=pair.get('pairAddress')
+              report['base_address']=(pair.get('baseToken') or {}).get('address')
+              report['quote_address']=(pair.get('quoteToken') or {}).get('address')
+              report['pool_check']=check_pool(report['pool_address'],report['base_address'],report['quote_address'])
+              report['status']=report['pool_check']['status']
+              report['explanation']='V2_LEGS_MATCH is token leg consistency only, not verified pool legitimacy, liquidity or issuer'
+          except Exception as e:
+              report['error']=repr(e)
+          (root/'report.json').write_text(json.dumps(report,indent=2)+'\n')
+          print(json.dumps(report,indent=2))
+          # This investigation succeeds as a measurement if it recorded a concrete
+          # onchain outcome; unsupported ABI is a meaningful negative observation.
+          sys.exit(0 if report['status'] in ('V2_LEGS_MATCH','MISMATCH','VERIFY') and report.get('pool_check') else 2)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-002-pool-rpc-evidence
+          path: /tmp/pool-evidence/
+          retention-days: 14
+      - name: Fail when no actual pool observation was captured
+        if: always()
+        run: |
+          test '${{ steps.probe.outcome }}' = 'success' || (echo '::error::POOL OBSERVATION FAILED' && exit 1)

@@ -1,0 +1,36 @@
+name: BUILD-002 USDG metadata block evidence
+on:
+  push:
+    paths:
+      - 'v0.4/quote_metadata.py'
+      - '.github/workflows/build-002-quote-metadata.yml'
+  pull_request:
+    paths:
+      - 'v0.4/quote_metadata.py'
+      - '.github/workflows/build-002-quote-metadata.yml'
+jobs:
+  quote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Capture pinned USDG symbol decimals and supply
+        id: probe
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/usdg-evidence
+          python v0.4/quote_metadata.py --out /tmp/usdg-evidence/report.json > /tmp/usdg-evidence/summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-002-usdg-metadata-evidence
+          path: /tmp/usdg-evidence/
+          retention-days: 14
+      - name: Require onchain evidence success
+        if: always()
+        run: |
+          test '${{ steps.probe.outcome }}' = 'success' || (echo '::error::USDG METADATA VERIFY' && exit 1)
